@@ -8,9 +8,10 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "outDir": "dist",
+    "rootDir": "./src",
     "sourceMap": true,
     "target": "ES2023"
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["src/generated/**"]
 }

@@ -39,29 +39,42 @@ export const environmentSchema = z
         path: ["GOOGLE_PLACES_API_KEY"],
       });
     }
-
-    const gmailBits = [
-      environment.GOOGLE_GMAIL_CLIENT_ID,
-      environment.GOOGLE_GMAIL_CLIENT_SECRET,
-      environment.GOOGLE_GMAIL_REDIRECT_URI,
-    ];
-    const gmailSet = gmailBits.filter(Boolean).length;
-    if (gmailSet > 0 && gmailSet < 3) {
-      context.addIssue({
-        code: "custom",
-        message:
-          "GOOGLE_GMAIL_CLIENT_ID, GOOGLE_GMAIL_CLIENT_SECRET, and GOOGLE_GMAIL_REDIRECT_URI must all be set together",
-        path: ["GOOGLE_GMAIL_CLIENT_ID"],
-      });
-    }
   });
 
 export type Environment = z.infer<typeof environmentSchema>;
 
+/**
+ * Incomplete Gmail OAuth triples are cleared instead of crashing boot.
+ * GmailService already treats missing config as "not configured".
+ */
+function normalizeGmailConfig(values: Record<string, unknown>): Record<string, unknown> {
+  const id =
+    typeof values.GOOGLE_GMAIL_CLIENT_ID === "string" ? values.GOOGLE_GMAIL_CLIENT_ID.trim() : "";
+  const secret =
+    typeof values.GOOGLE_GMAIL_CLIENT_SECRET === "string"
+      ? values.GOOGLE_GMAIL_CLIENT_SECRET.trim()
+      : "";
+  const redirect =
+    typeof values.GOOGLE_GMAIL_REDIRECT_URI === "string"
+      ? values.GOOGLE_GMAIL_REDIRECT_URI.trim()
+      : "";
+  const setCount = [id, secret, redirect].filter(Boolean).length;
+  if (setCount === 0 || setCount === 3) {
+    return values;
+  }
+  return {
+    ...values,
+    GOOGLE_GMAIL_CLIENT_ID: undefined,
+    GOOGLE_GMAIL_CLIENT_SECRET: undefined,
+    GOOGLE_GMAIL_REDIRECT_URI: undefined,
+  };
+}
+
 export function validateEnvironment(values: Record<string, unknown>): Environment {
   const port = values.PORT ?? values.API_PORT;
-  return environmentSchema.parse({
+  const normalized = normalizeGmailConfig({
     ...values,
     ...(port !== undefined && port !== "" ? { API_PORT: port } : {}),
   });
+  return environmentSchema.parse(normalized);
 }
