@@ -1,0 +1,28 @@
+{
+  "name": "seo-agency-prospecting",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @seo-prospector/api\" \"npm run dev -w @seo-prospector/web\"",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write .",
+    "db:generate": "npm run prisma:generate -w @seo-prospector/api",
+    "db:migrate": "npm run prisma:migrate -w @seo-prospector/api",
+    "postinstall": "npm run db:generate"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "concurrently": "^9.2.0",
+    "eslint": "^9.31.0",
+    "prettier": "^3.6.2",
+    "typescript": "~6.0.0",
+    "typescript-eslint": "^8.38.0"
+  }
+}
