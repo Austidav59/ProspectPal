@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { ServeStaticModule } from "@nestjs/serve-static";
 import { LoggerModule } from "nestjs-pino";
 
 import { AuthModule } from "./auth/auth.module";
@@ -41,6 +42,10 @@ function resolveEnvFiles(): string[] {
           censor: "[REDACTED]",
         },
       },
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: resolve(__dirname, "../../Frontend/dist"),
+      exclude: ["/api/{*path}"],
     }),
     DatabaseModule,
     AuthModule,

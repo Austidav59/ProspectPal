@@ -20,6 +20,7 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.5",
     "@nestjs/platform-express": "^11.1.5",
+    "@nestjs/serve-static": "^5.0.5",
     "@prisma/client": "^6.19.3",
     "cheerio": "^1.2.0",
     "helmet": "^8.1.0",

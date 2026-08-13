@@ -9,6 +9,7 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "build:api": "npm run build -w @seo-prospector/api",
+    "build:render": "npm run build:web && npm run build:api",
     "build:web": "npm run build -w @seo-prospector/web",
     "start": "npm run start -w @seo-prospector/api",
     "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @seo-prospector/api\" \"npm run dev -w @seo-prospector/web\"",
