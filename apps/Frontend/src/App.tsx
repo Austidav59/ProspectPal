@@ -1,11 +1,18 @@
 import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { auth0Config } from "./lib/auth0";
 import { Portal } from "./portal/Portal";
 
 function SignInPanel() {
   const { loginWithRedirect, isLoading, error } = useAuth0();
+
+  useEffect(() => {
+    if (!error) return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("code") && !params.has("state") && !params.has("error")) return;
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }, [error]);
 
   return (
     <div className="mx-auto w-full max-w-md">
@@ -102,6 +109,7 @@ function Auth0AppProvider({ children }: { children: ReactNode }) {
         scope: "openid profile email offline_access",
       }}
       cacheLocation="localstorage"
+      useCookiesForTransactions
       useRefreshTokens
     >
       {children}
