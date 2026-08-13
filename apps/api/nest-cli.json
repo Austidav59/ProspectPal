@@ -7,19 +7,19 @@
     "assets": [
       {
         "include": "generated/prisma/**/*.js",
-        "outDir": "dist/src"
+        "outDir": "dist"
       },
       {
         "include": "generated/prisma/**/*.node",
-        "outDir": "dist/src"
+        "outDir": "dist"
       },
       {
         "include": "generated/prisma/**/*.json",
-        "outDir": "dist/src"
+        "outDir": "dist"
       },
       {
         "include": "generated/prisma/**/*.prisma",
-        "outDir": "dist/src"
+        "outDir": "dist"
       }
     ]
   }
