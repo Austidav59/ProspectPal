@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+const optionalNonEmptyString = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().min(1).optional(),
+);
+
+const optionalUrl = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().url().optional(),
+);
+
 export const environmentSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -11,15 +21,15 @@ export const environmentSchema = z
     AUTH0_AUDIENCE: z.string().min(1),
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
     BUSINESS_DISCOVERY_PROVIDER: z.enum(["mock", "google"]).default("mock"),
-    GOOGLE_PLACES_API_KEY: z.string().min(1).optional(),
+    GOOGLE_PLACES_API_KEY: optionalNonEmptyString,
     /** OAuth client for connecting personal Gmail inboxes (send outreach). */
-    GOOGLE_GMAIL_CLIENT_ID: z.string().min(1).optional(),
-    GOOGLE_GMAIL_CLIENT_SECRET: z.string().min(1).optional(),
-    GOOGLE_GMAIL_REDIRECT_URI: z.string().url().optional(),
+    GOOGLE_GMAIL_CLIENT_ID: optionalNonEmptyString,
+    GOOGLE_GMAIL_CLIENT_SECRET: optionalNonEmptyString,
+    GOOGLE_GMAIL_REDIRECT_URI: optionalUrl,
     /** Resend API key for email campaign blasts. */
-    RESEND_API_KEY: z.string().min(1).optional(),
+    RESEND_API_KEY: optionalNonEmptyString,
     /** Verified Resend from address, e.g. "Prospect Pal <hello@yourdomain.com>". */
-    RESEND_FROM_EMAIL: z.string().min(1).optional(),
+    RESEND_FROM_EMAIL: optionalNonEmptyString,
   })
   .superRefine((environment, context) => {
     if (environment.BUSINESS_DISCOVERY_PROVIDER === "google" && !environment.GOOGLE_PLACES_API_KEY) {

@@ -33,4 +33,28 @@ describe("validateEnvironment", () => {
       }),
     ).toMatchObject({ API_PORT: 10000 });
   });
+
+  it("treats blank optional Gmail vars as unset", () => {
+    expect(
+      validateEnvironment({
+        ...validEnvironment,
+        GOOGLE_GMAIL_CLIENT_ID: "",
+        GOOGLE_GMAIL_CLIENT_SECRET: "",
+        GOOGLE_GMAIL_REDIRECT_URI: "",
+      }),
+    ).toMatchObject({
+      GOOGLE_GMAIL_CLIENT_ID: undefined,
+      GOOGLE_GMAIL_CLIENT_SECRET: undefined,
+      GOOGLE_GMAIL_REDIRECT_URI: undefined,
+    });
+  });
+
+  it("rejects partial Gmail OAuth config", () => {
+    expect(() =>
+      validateEnvironment({
+        ...validEnvironment,
+        GOOGLE_GMAIL_CLIENT_ID: "only-one",
+      }),
+    ).toThrow(/GMAIL/);
+  });
 });
