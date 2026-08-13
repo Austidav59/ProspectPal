@@ -11,9 +11,18 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService<Environment, true>);
   const apiPort = config.getOrThrow<number>("API_PORT");
   const webOrigin = config.getOrThrow<string>("WEB_ORIGIN");
+  const auth0Domain = config.getOrThrow<string>("AUTH0_DOMAIN");
 
   app.useLogger(app.get(Logger));
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          connectSrc: ["'self'", `https://${auth0Domain}`],
+        },
+      },
+    }),
+  );
   app.enableCors({
     credentials: true,
     origin: webOrigin,
