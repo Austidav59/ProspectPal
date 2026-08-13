@@ -23,4 +23,14 @@ describe("validateEnvironment", () => {
       validateEnvironment({ ...validEnvironment, AUTH0_AUDIENCE: "" }),
     ).toThrow();
   });
+
+  it("prefers Render PORT over API_PORT", () => {
+    expect(
+      validateEnvironment({
+        ...validEnvironment,
+        PORT: "10000",
+        API_PORT: "3000",
+      }),
+    ).toMatchObject({ API_PORT: 10000 });
+  });
 });

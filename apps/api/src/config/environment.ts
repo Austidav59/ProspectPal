@@ -3,6 +3,7 @@ import { z } from "zod";
 export const environmentSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    /** Prefer Render's PORT when present; otherwise API_PORT / default 3000. */
     API_PORT: z.coerce.number().int().positive().default(3000),
     WEB_ORIGIN: z.string().url(),
     DATABASE_URL: z.string().min(1),
@@ -48,5 +49,9 @@ export const environmentSchema = z
 export type Environment = z.infer<typeof environmentSchema>;
 
 export function validateEnvironment(values: Record<string, unknown>): Environment {
-  return environmentSchema.parse(values);
+  const port = values.PORT ?? values.API_PORT;
+  return environmentSchema.parse({
+    ...values,
+    ...(port !== undefined && port !== "" ? { API_PORT: port } : {}),
+  });
 }

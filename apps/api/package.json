@@ -3,18 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "nest build",
-    "dev": "nest start --watch",
+    "build": "npx nest build",
+    "dev": "npx nest start --watch",
     "lint": "eslint src test --max-warnings=0",
     "start": "node dist/src/main.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "prisma:generate": "node --env-file=../../.env ../../node_modules/prisma/build/index.js generate",
-    "prisma:migrate": "node --env-file=../../.env ../../node_modules/prisma/build/index.js migrate deploy",
-    "prisma:push": "node --env-file=../../.env ../../node_modules/prisma/build/index.js db push",
-    "postinstall": "prisma generate"
+    "prisma:generate": "node ./scripts/prisma.mjs generate",
+    "prisma:migrate": "node ./scripts/prisma.mjs migrate deploy",
+    "prisma:push": "node ./scripts/prisma.mjs db push",
+    "postinstall": "node ./scripts/prisma.mjs generate"
   },
   "dependencies": {
+    "@nestjs/cli": "^11.0.7",
     "@nestjs/common": "^11.1.5",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.5",
@@ -25,18 +26,17 @@
     "jose": "^6.2.8",
     "nestjs-pino": "^4.4.0",
     "pino-http": "^10.5.0",
+    "prisma": "^6.19.3",
     "reflect-metadata": "^0.2.2",
     "resend": "^4.8.0",
     "rxjs": "^7.8.2",
     "zod": "^4.0.10"
   },
   "devDependencies": {
-    "@nestjs/cli": "^11.0.7",
     "@nestjs/testing": "^11.1.5",
     "@types/express": "^5.0.3",
     "@types/node": "^24.1.0",
     "@types/supertest": "^6.0.3",
-    "prisma": "^6.19.3",
     "supertest": "^7.1.4",
     "tsx": "^4.20.3",
     "vitest": "^3.2.4"

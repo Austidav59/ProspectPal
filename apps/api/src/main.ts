@@ -21,7 +21,7 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
   app.setGlobalPrefix("api");
 
-  await app.listen(apiPort);
+  await app.listen(apiPort, "0.0.0.0");
 }
 
 void bootstrap();
