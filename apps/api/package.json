@@ -6,7 +6,7 @@
     "build": "npx nest build",
     "dev": "npx nest start --watch",
     "lint": "eslint src test --max-warnings=0",
-    "start": "node dist/src/main.js",
+    "start": "node dist/main.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "node ./scripts/prisma.mjs generate",
