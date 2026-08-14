@@ -770,8 +770,8 @@ function LeadCard({
 
   return (
     <li className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold text-slate-900">{business.name}</p>
             <ContactBadge business={business} />
@@ -840,7 +840,7 @@ function LeadCard({
           <LeadLinks business={business} />
         </div>
 
-        <div className="flex max-w-64 flex-col items-end gap-2">
+        <div className="ml-auto flex shrink-0 flex-col items-end gap-2">
           {action}
           {errorMessage ? (
             <span className="max-w-56 text-right text-xs text-rose-500">
@@ -1173,8 +1173,8 @@ function FollowUpCard({ business }: { business: Business }) {
 
   return (
     <li className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold text-slate-900">{business.name}</p>
             <ContactBadge business={business} />
@@ -1185,7 +1185,7 @@ function FollowUpCard({ business }: { business: Business }) {
           <LeadLinks business={business} />
         </div>
 
-        <div className="flex flex-col items-end gap-2">
+        <div className="ml-auto flex shrink-0 flex-col items-end gap-2">
           <button
             className={
               business.repliedAt ? secondaryButtonClass : primaryButtonClass
