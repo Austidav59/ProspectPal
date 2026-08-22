@@ -202,12 +202,13 @@ export class DiscoveryProcessor {
     }
 
     const searchBudget = Math.max(0, limit - websitePending.length);
-    if (searchBudget === 0) return websitePending.length;
-
-    const searched = await this.searchMissingSocials({
-      organizationId,
-      limit: searchBudget,
-    });
+    let searched = 0;
+    if (searchBudget > 0) {
+      searched = await this.searchMissingSocials({
+        organizationId,
+        limit: searchBudget,
+      });
+    }
     return websitePending.length + searched;
   }
 

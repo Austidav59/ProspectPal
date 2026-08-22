@@ -1,0 +1,422 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  SALES_REP
+  ANALYST
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum CampaignStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum CampaignRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum SearchSource {
+  GOOGLE_PLACES
+  MAPS_SCRAPER
+  MOCK
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum OutreachType {
+  DM
+  EMAIL
+}
+
+enum EmailOfferType {
+  NEED_WEBSITE
+  NEED_SEO
+  NEED_REVIEWS
+}
+
+enum EmailCampaignStatus {
+  DRAFT
+  SENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum EmailSendStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model User {
+  id                  String             @id @default(uuid()) @db.Uuid
+  auth0Sub            String?            @unique
+  email               String             @unique
+  name                String
+  passwordHash        String?
+  status              UserStatus         @default(ACTIVE)
+  /// Connected Gmail mailbox used to send outreach (personal inbox).
+  gmailEmail          String?
+  gmailRefreshToken   String?
+  gmailAccessToken    String?
+  gmailTokenExpiresAt DateTime?
+  gmailConnectedAt    DateTime?
+  memberships         OrganizationUser[]
+  sessions            RefreshSession[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+}
+
+model Organization {
+  id                 String                @id @default(uuid()) @db.Uuid
+  name               String
+  subscriptionStatus String                @default("internal")
+  users              OrganizationUser[]
+  campaigns          SearchCampaign[]
+  businesses         Business[]
+  outreachEvents     OutreachEvent[]
+  emailCampaigns     EmailCampaign[]
+  settings           OrganizationSettings?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+}
+
+model OrganizationSettings {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @unique @db.Uuid
+  dmDailyLimit   Int          @default(40)
+  dmTemplate     String
+  emailSubject   String
+  emailTemplate  String
+  emailFrom      String
+  darkMode       Boolean      @default(false)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model OrganizationUser {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  userId         String       @db.Uuid
+  role           UserRole
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model SearchCampaign {
+  id                     String         @id @default(uuid()) @db.Uuid
+  organizationId         String         @db.Uuid
+  name                   String
+  country                String
+  state                  String?
+  city                   String
+  postalCode             String?
+  radiusMeters           Int            @default(25000)
+  niche                  String
+  keyword                String?
+  maximumResults         Int            @default(50)
+  minimumRating          Float?
+  minimumReviewCount     Int?
+  maximumReviewCount     Int?
+  includeWithWebsites    Boolean        @default(true)
+  includeWithoutWebsites Boolean        @default(true)
+  schedule               String?
+  status                 CampaignStatus @default(ACTIVE)
+  organization           Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  runs                   CampaignRun[]
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  @@index([organizationId, status])
+}
+
+model CampaignRun {
+  id              String              @id @default(uuid()) @db.Uuid
+  campaignId      String              @db.Uuid
+  ownerUserId     String?             @db.Uuid
+  status          CampaignRunStatus   @default(QUEUED)
+  source          SearchSource
+  discoveredCount Int                 @default(0)
+  createdCount    Int                 @default(0)
+  updatedCount    Int                 @default(0)
+  filteredCount   Int                 @default(0)
+  errorMessage    String?
+  poolMessage     String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  campaign        SearchCampaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  discoveries     BusinessDiscovery[]
+  job             DiscoveryJob?
+  createdAt       DateTime            @default(now())
+
+  @@index([campaignId, createdAt])
+  @@index([status])
+  @@index([ownerUserId])
+}
+
+model Business {
+  id                          String              @id @default(uuid()) @db.Uuid
+  organizationId              String              @db.Uuid
+  googlePlaceId               String
+  externalProviderId          String
+  name                        String
+  primaryCategory             String?
+  categories                  String[]
+  phone                       String?
+  websiteUrl                  String?
+  websiteDiscoveryAttemptedAt DateTime?
+  instagramUrl                String?
+  instagramScrapedAt          DateTime?
+  facebookUrl                 String?
+  email                       String?
+  socialScrapedAt             DateTime?
+  googleSearchAttemptedAt     DateTime?
+  dmSentAt                    DateTime?
+  emailSentAt                 DateTime?
+  repliedAt                   DateTime?
+  address                     String
+  city                        String
+  state                       String?
+  postalCode                  String?
+  country                     String
+  latitude                    Float
+  longitude                   Float
+  googleMapsUrl               String?
+  rating                      Float?
+  reviewCount                 Int?
+  businessStatus              String
+  priceLevel                  String?
+  regularOpeningHours         Json?
+  currentOpeningHours         Json?
+  photoReferences             Json?
+  description                 String?
+  searchSource                SearchSource
+  searchCity                  String
+  searchNiche                 String
+  organization                Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  discoveries                 BusinessDiscovery[]
+  outreachEvents              OutreachEvent[]
+  emailCampaignSends          EmailCampaignSend[]
+  discoveredAt                DateTime            @default(now())
+  updatedAt                   DateTime            @updatedAt
+
+  @@unique([organizationId, googlePlaceId])
+  @@index([organizationId, name])
+  @@index([organizationId, phone])
+  @@index([organizationId, websiteUrl])
+  @@index([organizationId, websiteDiscoveryAttemptedAt])
+  @@index([organizationId, dmSentAt])
+  @@index([organizationId, emailSentAt])
+  @@index([organizationId, instagramScrapedAt])
+  @@index([organizationId, googleSearchAttemptedAt])
+  @@index([organizationId, rating, reviewCount])
+  @@index([organizationId, email])
+}
+
+model OutreachEvent {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  businessId     String       @db.Uuid
+  type           OutreachType
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  business       Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, type, createdAt])
+  @@index([businessId])
+}
+
+/// Batch outreach email blast (separate from SearchCampaign place discovery).
+model EmailCampaign {
+  id                 String              @id @default(uuid()) @db.Uuid
+  organizationId     String              @db.Uuid
+  name               String
+  offerType          EmailOfferType
+  subject            String
+  body               String
+  status             EmailCampaignStatus @default(DRAFT)
+  audienceCount      Int                 @default(0)
+  sentCount          Int                 @default(0)
+  failedCount        Int                 @default(0)
+  skipAlreadyEmailed Boolean             @default(true)
+  startedAt          DateTime?
+  completedAt        DateTime?
+  errorMessage       String?
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sends              EmailCampaignSend[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+}
+
+model EmailCampaignSend {
+  id           String          @id @default(uuid()) @db.Uuid
+  campaignId   String          @db.Uuid
+  businessId   String          @db.Uuid
+  toEmail      String
+  status       EmailSendStatus @default(PENDING)
+  resendId     String?
+  errorMessage String?
+  sentAt       DateTime?
+  campaign     EmailCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  business     Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@unique([campaignId, businessId])
+  @@index([campaignId, status])
+  @@index([businessId])
+}
+
+model BusinessDiscovery {
+  id           String      @id @default(uuid()) @db.Uuid
+  runId        String      @db.Uuid
+  businessId   String      @db.Uuid
+  rawData      Json
+  run          CampaignRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  business     Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  discoveredAt DateTime    @default(now())
+
+  @@unique([runId, businessId])
+  @@index([businessId])
+}
+
+model DiscoveryJob {
+  id           String      @id @default(uuid()) @db.Uuid
+  runId        String      @unique @db.Uuid
+  status       JobStatus   @default(QUEUED)
+  attempts     Int         @default(0)
+  maxAttempts  Int         @default(3)
+  availableAt  DateTime
+  lockedAt     DateTime?
+  errorMessage String?
+  run          CampaignRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([status, availableAt])
+}
+
+model SharedPlace {
+  id                 String   @id @default(uuid()) @db.Uuid
+  googlePlaceId      String   @unique
+  name               String
+  primaryCategory    String?
+  categories         String[]
+  phone              String?
+  websiteUrl         String?
+  address            String
+  city               String
+  state              String?
+  postalCode         String?
+  country            String
+  latitude           Float
+  longitude          Float
+  googleMapsUrl      String?
+  rating             Float?
+  reviewCount        Int?
+  businessStatus     String
+  marketKey          String
+  categoryKey        String
+  timesServed        Int      @default(0)
+  lastSeenInSearchAt DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  assignments LeadAssignment[]
+  topRanks    MarketTopRanker[]
+
+  @@index([marketKey, categoryKey])
+  @@index([categoryKey, city])
+}
+
+model MarketSearchPool {
+  id              String    @id @default(uuid()) @db.Uuid
+  searchKey       String    @unique
+  marketKey       String
+  categoryKey     String
+  city            String
+  state           String?
+  country         String
+  niche           String
+  lastRefreshedAt DateTime?
+  searchExhausted Boolean   @default(false)
+  targetPoolSize  Int       @default(100)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([marketKey, categoryKey])
+}
+
+model MarketTopRanker {
+  id            String      @id @default(uuid()) @db.Uuid
+  searchKey     String
+  googlePlaceId String
+  rank          Int
+  observedAt    DateTime    @default(now())
+  sharedPlace   SharedPlace @relation(fields: [googlePlaceId], references: [googlePlaceId], onDelete: Cascade)
+
+  @@unique([searchKey, rank])
+  @@unique([searchKey, googlePlaceId])
+  @@index([googlePlaceId])
+}
+
+model LeadAssignment {
+  id             String      @id @default(uuid()) @db.Uuid
+  googlePlaceId  String
+  ownerUserId    String      @db.Uuid
+  organizationId String      @db.Uuid
+  shownAt        DateTime    @default(now())
+  cooldownUntil  DateTime
+  contactedAt    DateTime?
+  repliedAt      DateTime?
+  sharedPlace    SharedPlace @relation(fields: [googlePlaceId], references: [googlePlaceId], onDelete: Cascade)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([googlePlaceId, cooldownUntil])
+  @@index([ownerUserId, cooldownUntil])
+  @@index([organizationId, cooldownUntil])
+}

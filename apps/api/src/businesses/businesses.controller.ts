@@ -42,15 +42,6 @@ export class BusinessesController {
     return this.businesses.list(request.auth.organizationId, query);
   }
 
-  /** Creates/refreshes fake leads for Gmail send testing. */
-  @Post("test-email-leads")
-  ensureTestEmailLeads(@Req() request: AuthenticatedRequest) {
-    return this.businesses.ensureTestEmailLeads(
-      request.auth.organizationId,
-      request.auth.sub,
-    );
-  }
-
   @Get(":id")
   get(@Req() request: AuthenticatedRequest, @Param("id", ParseUUIDPipe) id: string) {
     return this.businesses.get(request.auth.organizationId, id);

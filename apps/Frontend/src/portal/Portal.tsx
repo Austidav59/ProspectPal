@@ -13,7 +13,6 @@ import {
 import {
   createCampaign,
   createEmailCampaign,
-  createTestEmailLeads,
   deleteCampaign,
   disconnectGmail,
   fetchCurrentUser,
@@ -30,7 +29,6 @@ import {
   previewEmailCampaignAudience,
   runCampaign,
   sendOfferEmail,
-  setReplied,
   startEmailCampaign,
   startGmailConnect,
   unhideCampaign,
@@ -929,17 +927,6 @@ function LeadsTab({
   const dmTemplate = settingsQuery.data?.dmTemplate ?? "";
   const gmailConnected = Boolean(gmailQuery.data?.connected);
 
-  const testLeadsMutation = useMutation({
-    mutationFn: async () => createTestEmailLeads(await getToken()),
-    onSuccess: () => {
-      setCampaignId("");
-      setSearch("TEST —");
-      setContactedFilter("all");
-      setPage(1);
-      void queryClient.invalidateQueries({ queryKey: ["businesses"] });
-    },
-  });
-
   const enriching =
     data?.items.filter(
       (business) =>
@@ -1024,41 +1011,6 @@ function LeadsTab({
           </div>
         </section>
       ) : null}
-
-      <section className="rounded-2xl border border-violet-200 bg-violet-50 px-5 py-4 dark:border-violet-900 dark:bg-violet-950/40">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-violet-900 dark:text-violet-100">
-              Gmail test leads
-            </p>
-            <p className="mt-0.5 text-xs text-violet-800 dark:text-violet-200/80">
-              Adds two fake leads: one to you
-              {gmailQuery.data?.email ? ` (${gmailQuery.data.email})` : ""}, and
-              one to marisabeltrejoo@gmail.com. Click Email them on each.
-            </p>
-          </div>
-          <button
-            className={secondaryButtonClass}
-            disabled={testLeadsMutation.isPending || !gmailConnected}
-            title={!gmailConnected ? "Connect Gmail first" : undefined}
-            type="button"
-            onClick={() => testLeadsMutation.mutate()}
-          >
-            {testLeadsMutation.isPending ? "Adding…" : "Add test email leads"}
-          </button>
-        </div>
-        {testLeadsMutation.error ? (
-          <p className="mt-2 text-xs text-rose-600">
-            {testLeadsMutation.error.message}
-          </p>
-        ) : null}
-        {testLeadsMutation.isSuccess ? (
-          <p className="mt-2 text-xs text-violet-800 dark:text-violet-200">
-            Ready — search filtered to “TEST —”. Email both leads from your
-            connected Gmail.
-          </p>
-        ) : null}
-      </section>
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -1156,122 +1108,6 @@ function LeadsTab({
           </p>
         )}
       </section>
-    </div>
-  );
-}
-
-function FollowUpCard({ business }: { business: Business }) {
-  const getToken = useApiToken();
-  const queryClient = useQueryClient();
-
-  const repliedMutation = useMutation({
-    mutationFn: async () =>
-      setReplied(await getToken(), business.id, business.repliedAt === null),
-    onSuccess: () =>
-      void queryClient.invalidateQueries({ queryKey: ["businesses"] }),
-  });
-
-  return (
-    <li className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="font-semibold text-slate-900">{business.name}</p>
-            <ContactBadge business={business} />
-          </div>
-          <p className="mt-0.5 text-xs text-slate-400">
-            {business.primaryCategory ?? "Business"} · {business.city}
-          </p>
-          <LeadLinks business={business} />
-        </div>
-
-        <div className="ml-auto flex shrink-0 flex-col items-end gap-2">
-          <button
-            className={
-              business.repliedAt ? secondaryButtonClass : primaryButtonClass
-            }
-            disabled={repliedMutation.isPending}
-            type="button"
-            onClick={() => repliedMutation.mutate()}
-          >
-            {business.repliedAt ? "Mark as not replied" : "Mark as replied"}
-          </button>
-          {business.instagramUrl ? (
-            <a
-              className="text-xs font-medium text-pink-600 hover:underline"
-              href={business.instagramUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Open Instagram chat
-            </a>
-          ) : null}
-        </div>
-      </div>
-    </li>
-  );
-}
-
-function FollowUpTab() {
-  const getToken = useApiToken();
-  const [view, setView] = useState<"awaiting" | "replied" | "all">("awaiting");
-
-  const businessesQuery = useQuery({
-    queryKey: ["businesses", { contacted: true }],
-    queryFn: async () => listBusinesses(await getToken(), { contacted: true }),
-  });
-
-  const items = (businessesQuery.data?.items ?? []).filter((business) =>
-    view === "all"
-      ? true
-      : view === "replied"
-        ? business.repliedAt !== null
-        : business.repliedAt === null,
-  );
-
-  return (
-    <div className="mx-auto w-full max-w-4xl space-y-6">
-      <section className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm text-sky-800">
-        <p className="font-semibold">How follow-ups work</p>
-        <p className="mt-1">
-          Everyone you've messaged or emailed lands here. When a business
-          replies to your Instagram DM, hit “Mark as replied” so you can focus
-          on warm leads. Automated drip replies through the official Instagram
-          API need a Meta developer app connected to an Instagram professional
-          account — once you have that, this tab is where it will plug in. Until
-          then, use “Open Instagram chat” to reply by hand.
-        </p>
-      </section>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <select
-          className={`${inputClass} max-w-48`}
-          value={view}
-          onChange={(event) => setView(event.target.value as typeof view)}
-        >
-          <option value="awaiting">Awaiting reply</option>
-          <option value="replied">Replied</option>
-          <option value="all">All contacted</option>
-        </select>
-        <span className="ml-auto text-sm text-slate-400">
-          {items.length} lead{items.length === 1 ? "" : "s"}
-        </span>
-      </div>
-
-      {businessesQuery.isLoading ? (
-        <p className="text-sm text-slate-500">Loading follow-ups…</p>
-      ) : items.length > 0 ? (
-        <ul className="space-y-3">
-          {items.map((business) => (
-            <FollowUpCard key={business.id} business={business} />
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-slate-400">
-          Nothing here yet — leads appear after you direct message or email
-          them.
-        </p>
-      )}
     </div>
   );
 }
@@ -1376,6 +1212,15 @@ function SettingsTab() {
   }
 
   const gmail = gmailQuery.data;
+  const savedSettings = settingsQuery.data;
+  const dmDirty =
+    savedSettings !== undefined &&
+    (form.dmTemplate !== savedSettings.dmTemplate ||
+      form.dmDailyLimit !== savedSettings.dmDailyLimit);
+  const emailDirty =
+    savedSettings !== undefined &&
+    (form.emailSubject !== savedSettings.emailSubject ||
+      form.emailTemplate !== savedSettings.emailTemplate);
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
@@ -1527,6 +1372,20 @@ function SettingsTab() {
             Direct Message. Use {"{name}"} for the business name.
           </span>
         </label>
+        {dmDirty ? (
+          <button
+            className={`${primaryButtonClass} mt-4`}
+            disabled={saveMutation.isPending}
+            type="button"
+            onClick={() => saveMutation.mutate(form)}
+          >
+            {saveMutation.isPending
+              ? "Saving…"
+              : saved
+                ? "Saved ✓"
+                : "Save message"}
+          </button>
+        ) : null}
       </section>
 
       <section className={panelClass}>
@@ -1564,6 +1423,20 @@ function SettingsTab() {
             Use {"{name}"} for the business name.
           </span>
         </label>
+        {emailDirty ? (
+          <button
+            className={`${primaryButtonClass} mt-4`}
+            disabled={saveMutation.isPending}
+            type="button"
+            onClick={() => saveMutation.mutate(form)}
+          >
+            {saveMutation.isPending
+              ? "Saving…"
+              : saved
+                ? "Saved ✓"
+                : "Save email template"}
+          </button>
+        ) : null}
       </section>
 
       {saveMutation.error ? (
@@ -1571,26 +1444,11 @@ function SettingsTab() {
           {saveMutation.error.message}
         </p>
       ) : null}
-
-      <button
-        className={primaryButtonClass}
-        disabled={saveMutation.isPending}
-        type="button"
-        onClick={() => {
-          if (form) saveMutation.mutate(form);
-        }}
-      >
-        {saveMutation.isPending
-          ? "Saving…"
-          : saved
-            ? "Saved ✓"
-            : "Save settings"}
-      </button>
     </div>
   );
 }
 
-type Tab = "search" | "leads" | "email" | "followup" | "settings";
+type Tab = "search" | "leads" | "email" | "settings";
 
 const OFFER_LABELS: Record<EmailOfferType, string> = {
   NEED_WEBSITE: "Need a website",
@@ -1965,7 +1823,6 @@ export function Portal() {
     { id: "search", label: "Find Businesses" },
     { id: "leads", label: "Leads" },
     { id: "email", label: "Email" },
-    { id: "followup", label: "Follow-up" },
     { id: "settings", label: "Settings" },
   ];
 
@@ -2045,8 +1902,6 @@ export function Portal() {
           />
         ) : tab === "email" ? (
           <EmailCampaignsTab />
-        ) : tab === "followup" ? (
-          <FollowUpTab />
         ) : (
           <SettingsTab />
         )}

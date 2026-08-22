@@ -1,9 +1,8 @@
 import {
-  BadRequestException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { SearchSource, type Business, type Prisma } from "../generated/prisma";
+import { type Business, type Prisma } from "../generated/prisma";
 
 import { PrismaService } from "../database/prisma.service";
 import { scoreReceptiveness } from "../leads/receptiveness";
@@ -13,21 +12,6 @@ import type {
   BusinessListQuery,
   UpdateBusinessInput,
 } from "./business.schemas";
-
-const TEST_LEADS = [
-  {
-    key: "self",
-    name: "TEST — Email to me",
-    /** Prefer connected Gmail, else login email. */
-    resolveEmail: (user: { email: string; gmailEmail: string | null }) =>
-      user.gmailEmail ?? user.email,
-  },
-  {
-    key: "marisabel",
-    name: "TEST — Email to Marisabel",
-    resolveEmail: () => "marisabeltrejoo@gmail.com",
-  },
-] as const;
 
 @Injectable()
 export class BusinessesService {
@@ -149,74 +133,6 @@ export class BusinessesService {
       where: { id },
       data: this.toUpdateData(input),
     });
-  }
-
-  /** Temporary fake leads for testing Gmail send (to yourself + a fixed address). */
-  async ensureTestEmailLeads(
-    organizationId: string,
-    userId: string,
-  ): Promise<Business[]> {
-    const user = await this.prisma.user.findFirst({
-      where: { id: userId, memberships: { some: { organizationId } } },
-      select: { email: true, gmailEmail: true },
-    });
-    if (!user?.email) {
-      throw new BadRequestException(
-        "Your account has no email address for the self test lead",
-      );
-    }
-
-    const leads: Business[] = [];
-    for (const spec of TEST_LEADS) {
-      const email = spec.resolveEmail(user);
-      const googlePlaceId = `prospect-pal-test-email-${spec.key}-${organizationId}`;
-      const lead = await this.prisma.business.upsert({
-        where: {
-          organizationId_googlePlaceId: { organizationId, googlePlaceId },
-        },
-        create: {
-          organizationId,
-          googlePlaceId,
-          externalProviderId: googlePlaceId,
-          name: spec.name,
-          primaryCategory: "Test lead",
-          categories: ["test"],
-          email,
-          address: "Test inbox (Gmail send)",
-          city: "Test City",
-          state: null,
-          postalCode: null,
-          country: "United States",
-          latitude: 0,
-          longitude: 0,
-          googleMapsUrl: null,
-          rating: 5,
-          reviewCount: 0,
-          businessStatus: "OPERATIONAL",
-          searchSource: SearchSource.MOCK,
-          searchCity: "Test City",
-          searchNiche: "test",
-          websiteUrl: null,
-          instagramUrl: null,
-          facebookUrl: null,
-          googleSearchAttemptedAt: new Date(),
-          instagramScrapedAt: new Date(),
-          socialScrapedAt: new Date(),
-        },
-        update: {
-          name: spec.name,
-          primaryCategory: "Test lead",
-          email,
-          emailSentAt: null,
-          address: "Test inbox (Gmail send)",
-          googleSearchAttemptedAt: new Date(),
-          instagramScrapedAt: new Date(),
-          socialScrapedAt: new Date(),
-        },
-      });
-      leads.push(lead);
-    }
-    return leads;
   }
 
   async scrapeInstagram(organizationId: string, id: string): Promise<Business> {

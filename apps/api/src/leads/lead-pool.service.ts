@@ -6,7 +6,9 @@ import { DiscoveryProviderService } from "../discovery/discovery-provider.servic
 import type { DiscoveredBusiness } from "../discovery/discovery.types";
 import {
   LEAD_COOLDOWN_MS,
+  MAX_POOL_REPLENISH_ATTEMPTS,
   MIN_AVAILABLE_BEFORE_REFRESH,
+  SKIP_TOP_GOOGLE_RANKS,
   buildSearchKey,
   normalizeCategoryKey,
   normalizeMarketKey,
@@ -61,29 +63,54 @@ export class LeadPoolService {
     });
 
     let refreshedFromGoogle = false;
-    let available = await this.countAvailable(searchKey, input.ownerUserId);
-    const recordedRanks = await this.prisma.marketTopRanker.count({
-      where: { searchKey },
-    });
-    if (
-      available < Math.min(MIN_AVAILABLE_BEFORE_REFRESH, input.limit) ||
-      recordedRanks < Math.min(available, input.limit)
-    ) {
+    for (let attempt = 0; attempt < MAX_POOL_REPLENISH_ATTEMPTS; attempt += 1) {
+      const available = await this.countAvailable(searchKey, input.ownerUserId);
+      if (available >= input.limit && attempt > 0) break;
+      if (
+        attempt === 0 &&
+        available >= Math.min(MIN_AVAILABLE_BEFORE_REFRESH, input.limit)
+      ) {
+        const recordedRanks = await this.prisma.marketTopRanker.count({
+          where: { searchKey },
+        });
+        if (recordedRanks >= Math.min(available + SKIP_TOP_GOOGLE_RANKS, input.limit + SKIP_TOP_GOOGLE_RANKS)) {
+          break;
+        }
+      }
+
       refreshedFromGoogle = true;
+      const fetchSize = Math.min(
+        120,
+        Math.max(input.limit + SKIP_TOP_GOOGLE_RANKS, 40) + attempt * 25,
+      );
+      this.logger.log(
+        `Pool refresh attempt ${attempt + 1}/${MAX_POOL_REPLENISH_ATTEMPTS} for ${searchKey} (fetch ${fetchSize}, need ${input.limit} after skipping top ${SKIP_TOP_GOOGLE_RANKS})`,
+      );
       await this.replenishFromGoogle({
         searchKey,
         marketKey,
         categoryKey,
         campaign: input.campaign,
+        maximumResults: fetchSize,
       });
-      available = await this.countAvailable(searchKey, input.ownerUserId);
+
+      const pool = await this.prisma.marketSearchPool.findUnique({
+        where: { searchKey },
+      });
+      if (pool?.searchExhausted) break;
+
+      const after = await this.countAvailable(searchKey, input.ownerUserId);
+      if (after >= input.limit) break;
     }
 
+    const topSkipped = await this.topRankerSkipSet(searchKey);
     const candidates = await this.listAvailableCandidates(
+      searchKey,
       marketKey,
       categoryKey,
       input.ownerUserId,
       Math.max(input.limit * 3, 30),
+      topSkipped,
     );
 
     const ranked = candidates
@@ -110,7 +137,6 @@ export class LeadPoolService {
 
     for (const lead of toClaim) {
       await this.prisma.$transaction(async (tx) => {
-        // Skip if another org locked it since we listed candidates.
         const locked = await tx.leadAssignment.findFirst({
           where: {
             googlePlaceId: lead.shared.googlePlaceId,
@@ -140,6 +166,7 @@ export class LeadPoolService {
       where: { searchKey },
     });
     const exhausted = claimed.length === 0 && (pool?.searchExhausted ?? false);
+    const short = claimed.length > 0 && claimed.length < input.limit;
 
     return {
       searchKey,
@@ -149,9 +176,11 @@ export class LeadPoolService {
       message:
         claimed.length === 0
           ? exhausted
-            ? "No fresh leads in this market — Google results are exhausted or the remaining businesses are locked."
+            ? "No fresh leads in this market — Maps results are exhausted or the remaining businesses are locked."
             : "No fresh leads available right now. Try again after the pool refreshes."
-          : null,
+          : short
+            ? `Found ${claimed.length} of ${input.limit} requested leads (skipped top ${SKIP_TOP_GOOGLE_RANKS} Google results).`
+            : null,
     };
   }
 
@@ -239,6 +268,17 @@ export class LeadPoolService {
     });
   }
 
+  private async topRankerSkipSet(searchKey: string): Promise<Set<string>> {
+    const top = await this.prisma.marketTopRanker.findMany({
+      where: {
+        searchKey,
+        rank: { lte: SKIP_TOP_GOOGLE_RANKS },
+      },
+      select: { googlePlaceId: true },
+    });
+    return new Set(top.map((row) => row.googlePlaceId));
+  }
+
   private async countAvailable(
     searchKey: string,
     ownerUserId: string,
@@ -255,6 +295,7 @@ export class LeadPoolService {
       distinct: ["googlePlaceId"],
     });
     const lockedSet = new Set(locked.map((row) => row.googlePlaceId));
+    const skipTop = await this.topRankerSkipSet(searchKey);
 
     const places = await this.prisma.sharedPlace.findMany({
       where: {
@@ -265,14 +306,19 @@ export class LeadPoolService {
       select: { googlePlaceId: true },
     });
 
-    return places.filter((place) => !lockedSet.has(place.googlePlaceId)).length;
+    return places.filter(
+      (place) =>
+        !lockedSet.has(place.googlePlaceId) && !skipTop.has(place.googlePlaceId),
+    ).length;
   }
 
   private async listAvailableCandidates(
+    searchKey: string,
     marketKey: string,
     categoryKey: string,
     ownerUserId: string,
     take: number,
+    skipTop: Set<string>,
   ): Promise<SharedPlace[]> {
     const locked = await this.prisma.leadAssignment.findMany({
       where: {
@@ -291,11 +337,15 @@ export class LeadPoolService {
         businessStatus: { not: "CLOSED_PERMANENTLY" },
       },
       orderBy: [{ timesServed: "asc" }, { reviewCount: "asc" }],
-      take: take * 2,
+      take: take * 3,
     });
 
     return places
-      .filter((place) => !lockedSet.has(place.googlePlaceId))
+      .filter(
+        (place) =>
+          !lockedSet.has(place.googlePlaceId) &&
+          !skipTop.has(place.googlePlaceId),
+      )
       .slice(0, take);
   }
 
@@ -304,9 +354,10 @@ export class LeadPoolService {
     marketKey: string;
     categoryKey: string;
     campaign: SearchCampaign;
+    maximumResults: number;
   }): Promise<void> {
     this.logger.log(
-      `Replenishing shared pool for ${input.searchKey} from Google Places`,
+      `Replenishing shared pool for ${input.searchKey} from discovery provider`,
     );
     const discovered = await this.provider.search({
       country: input.campaign.country,
@@ -316,7 +367,7 @@ export class LeadPoolService {
       radiusMeters: input.campaign.radiusMeters,
       niche: input.campaign.niche,
       keyword: input.campaign.keyword,
-      maximumResults: Math.max(input.campaign.maximumResults, 40),
+      maximumResults: input.maximumResults,
     });
 
     if (discovered.length === 0) {
@@ -327,7 +378,7 @@ export class LeadPoolService {
       return;
     }
 
-    for (const [index, candidate] of discovered.entries()) {
+    for (const candidate of discovered) {
       await this.upsertSharedPlace(
         candidate,
         input.marketKey,
@@ -336,7 +387,7 @@ export class LeadPoolService {
       );
     }
 
-    // Preserve the complete Google result order for ranking context.
+    // Preserve Maps result order so we can skip the top 3 winners.
     await this.prisma.marketTopRanker.deleteMany({
       where: { searchKey: input.searchKey },
     });
@@ -355,7 +406,7 @@ export class LeadPoolService {
       where: { searchKey: input.searchKey },
       data: {
         lastRefreshedAt: new Date(),
-        searchExhausted: discovered.length < 5,
+        searchExhausted: discovered.length < input.maximumResults * 0.5,
       },
     });
   }

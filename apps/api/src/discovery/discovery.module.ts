@@ -5,7 +5,7 @@ import { ScrapingModule } from "../scraping/scraping.module";
 import { DiscoveryJobsService } from "./discovery-jobs.service";
 import { DiscoveryProcessor } from "./discovery.processor";
 import { DiscoveryProviderService } from "./discovery-provider.service";
-import { GooglePlacesProvider } from "./google-places.provider";
+import { MapsScraperProvider } from "./maps-scraper.provider";
 import { MockPlacesProvider } from "./mock-places.provider";
 
 @Module({
@@ -14,7 +14,7 @@ import { MockPlacesProvider } from "./mock-places.provider";
     DiscoveryJobsService,
     DiscoveryProcessor,
     DiscoveryProviderService,
-    GooglePlacesProvider,
+    MapsScraperProvider,
     MockPlacesProvider,
     LeadPoolService,
   ],

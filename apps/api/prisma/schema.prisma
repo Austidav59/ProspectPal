@@ -34,6 +34,7 @@ enum CampaignRunStatus {
 
 enum SearchSource {
   GOOGLE_PLACES
+  MAPS_SCRAPER
   MOCK
 }
 

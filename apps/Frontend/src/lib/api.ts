@@ -339,36 +339,6 @@ export async function sendOfferEmail(
   return businessSchema.parse(body);
 }
 
-/** Fake leads: email yourself + marisabeltrejoo@gmail.com (via connected Gmail). */
-export async function createTestEmailLeads(
-  accessToken: string,
-): Promise<Business[]> {
-  const body = await request<unknown>(
-    "/businesses/test-email-leads",
-    accessToken,
-    {
-      method: "POST",
-    },
-  );
-  return z.array(businessSchema).parse(body);
-}
-
-export async function setReplied(
-  accessToken: string,
-  businessId: string,
-  replied: boolean,
-): Promise<Business> {
-  const body = await request<unknown>(
-    `/businesses/${businessId}/replied`,
-    accessToken,
-    {
-      method: "POST",
-      body: JSON.stringify({ replied }),
-    },
-  );
-  return businessSchema.parse(body);
-}
-
 export const gmailStatusSchema = z.object({
   connected: z.boolean(),
   email: z.string().nullable(),

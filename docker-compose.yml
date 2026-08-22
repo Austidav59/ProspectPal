@@ -1,0 +1,15 @@
+services:
+  maps-scraper:
+    image: gosom/google-maps-scraper:latest
+    platform: linux/amd64
+    container_name: prospectpal-maps-scraper
+    ports:
+      - "8080:8080"
+    volumes:
+      - gmaps-playwright-cache:/opt
+      - ./data/gmapsdata:/gmapsdata
+    command: ["-data-folder", "/gmapsdata"]
+    restart: unless-stopped
+
+volumes:
+  gmaps-playwright-cache:

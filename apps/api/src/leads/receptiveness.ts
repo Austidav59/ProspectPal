@@ -109,3 +109,6 @@ export function buildSearchKey(marketKey: string, categoryKey: string): string {
 
 export const LEAD_COOLDOWN_MS = 1000 * 60 * 60 * 24 * 30 * 6; // ~6 months
 export const MIN_AVAILABLE_BEFORE_REFRESH = 15;
+/** Never claim businesses that ranked #1–#3 in the Maps search (already winning locally). */
+export const SKIP_TOP_GOOGLE_RANKS = 3;
+export const MAX_POOL_REPLENISH_ATTEMPTS = 3;

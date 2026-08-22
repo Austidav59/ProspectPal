@@ -12,13 +12,15 @@
     "build:render": "npm run build:web && npm run build:api",
     "build:web": "npm run build -w @seo-prospector/web",
     "start": "npm run start -w @seo-prospector/api",
-    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @seo-prospector/api\" \"npm run dev -w @seo-prospector/web\"",
+    "dev": "node ./scripts/dev.mjs",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "format": "prettier --write .",
     "db:generate": "npm run prisma:generate -w @seo-prospector/api",
     "db:migrate": "npm run prisma:migrate -w @seo-prospector/api",
+    "maps:up": "docker compose up -d maps-scraper",
+    "maps:down": "docker compose stop maps-scraper",
     "postinstall": "npm run db:generate"
   },
   "devDependencies": {

@@ -13,7 +13,7 @@ Internal prospecting and lead-management platform for an SEO and website-design 
 
 ## Local setup
 
-Requirements: Node.js 22+ and a running PostgreSQL database. Docker and Redis are not required.
+Requirements: Node.js 22+, PostgreSQL, and (for real Maps discovery) Docker.
 
 ```bash
 cp .env.example .env
@@ -25,8 +25,25 @@ npm run db:migrate
 npm run dev
 ```
 
+`npm run dev` still starts the API + web app. If Docker is installed, it also starts the
+Maps scraper on `http://localhost:8080` in the background.
+
 The web app runs at `http://localhost:5173`, the API at `http://localhost:3000/api`,
 and dependency health is available at `GET /api/health`.
+
+### Business discovery (no Google Places API)
+
+Local development defaults to `BUSINESS_DISCOVERY_PROVIDER=mock` (fake leads, free).
+
+For real Google Maps listings, set in `.env`:
+
+```bash
+BUSINESS_DISCOVERY_PROVIDER=maps
+MAPS_SCRAPER_URL=http://localhost:8080
+```
+
+Then `npm run dev` (with Docker) is enough. First scrapes often take a few minutes.
+For heavier usage, set `MAPS_SCRAPER_PROXIES` to residential/SOCKS proxies.
 
 ### Auth0 dashboard setup
 
@@ -59,10 +76,10 @@ npm run typecheck
 The repository currently contains:
 
 - Milestone 1: workspace setup, Auth0 authentication, logging, and sign-in UI
-- Milestone 2: search campaigns, Google Places (New) discovery, a local mock provider,
+- Milestone 2: search campaigns, Google Maps scraper discovery (gosom), a local mock provider,
   idempotent business storage, campaign-run history, and persistent local job processing
 
-Local development uses `BUSINESS_DISCOVERY_PROVIDER=mock`, so discovery does not consume API
-credits. To use real data, set the provider to `google` and add a restricted
-`GOOGLE_PLACES_API_KEY`. Run `POST /api/campaigns/:id/run`; the resulting businesses are available
-from `GET /api/businesses`.
+Local development uses `BUSINESS_DISCOVERY_PROVIDER=mock`. For real data, set the provider to
+`maps` and `MAPS_SCRAPER_URL=http://localhost:8080`, then use `npm run dev` (Docker starts the
+scraper). Run `POST /api/campaigns/:id/run`; the resulting businesses are available from
+`GET /api/businesses`.

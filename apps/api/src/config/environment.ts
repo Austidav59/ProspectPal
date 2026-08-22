@@ -20,8 +20,22 @@ export const environmentSchema = z
     AUTH0_DOMAIN: z.string().min(1),
     AUTH0_AUDIENCE: z.string().min(1),
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
-    BUSINESS_DISCOVERY_PROVIDER: z.enum(["mock", "google"]).default("mock"),
-    GOOGLE_PLACES_API_KEY: optionalNonEmptyString,
+    /** mock = fake local leads; maps = self-hosted gosom Google Maps scraper. */
+    BUSINESS_DISCOVERY_PROVIDER: z.enum(["mock", "maps"]).default("mock"),
+    /** Base URL for gosom/google-maps-scraper web UI/API (no trailing slash). */
+    MAPS_SCRAPER_URL: optionalUrl,
+    /** Optional proxy list, comma or newline separated (socks5:// / http:// / https://). */
+    MAPS_SCRAPER_PROXIES: optionalNonEmptyString,
+    /** Scroll depth for Maps results (approx 20 listings per depth). */
+    MAPS_SCRAPER_DEPTH: z.preprocess(
+      (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+      z.coerce.number().int().positive().max(20).optional(),
+    ),
+    /** Job max runtime in seconds (gosom API multiplies this by seconds). Min ~180. */
+    MAPS_SCRAPER_MAX_TIME_SECONDS: z.preprocess(
+      (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+      z.coerce.number().int().min(180).default(600),
+    ),
     /** OAuth client for connecting personal Gmail inboxes (send outreach). */
     GOOGLE_GMAIL_CLIENT_ID: optionalNonEmptyString,
     GOOGLE_GMAIL_CLIENT_SECRET: optionalNonEmptyString,
@@ -32,11 +46,11 @@ export const environmentSchema = z
     RESEND_FROM_EMAIL: optionalNonEmptyString,
   })
   .superRefine((environment, context) => {
-    if (environment.BUSINESS_DISCOVERY_PROVIDER === "google" && !environment.GOOGLE_PLACES_API_KEY) {
+    if (environment.BUSINESS_DISCOVERY_PROVIDER === "maps" && !environment.MAPS_SCRAPER_URL) {
       context.addIssue({
         code: "custom",
-        message: "GOOGLE_PLACES_API_KEY is required when the Google discovery provider is enabled",
-        path: ["GOOGLE_PLACES_API_KEY"],
+        message: "MAPS_SCRAPER_URL is required when BUSINESS_DISCOVERY_PROVIDER=maps",
+        path: ["MAPS_SCRAPER_URL"],
       });
     }
   });
